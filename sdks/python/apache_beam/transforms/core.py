@@ -176,6 +176,10 @@ class DoFn(WithTypeHints, HasDisplayData):
   def from_callable(fn):
     return CallableWrapperDoFn(fn)
 
+  @staticmethod
+  def from_generator(generator):
+    return GeneratorWrapperDoFn(generator)
+
   def process_argspec_fn(self):
     """Returns the Python callable that will eventually be invoked.
 
@@ -206,6 +210,25 @@ def _fn_takes_side_inputs(fn):
   is_bound = isinstance(fn, types.MethodType) and fn.im_self is not None
   return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
 
+class GeneratorWrapperDoFn(DoFn):
+
+  def __init__(self, generator, *args, **kwargs):
+    if not inspect.isgeneratorfunction(generator):
+      raise TypeError('Expected a generator instead of: %r' % generator)
+
+    self._generator_def = generator
+    self._gen_args = args
+    self._gen_kwargs = kwargs
+
+  def start_bundle(self, context):
+    self._generator = self._generator_def(*self._gen_args, **self._gen_kwargs)
+    self._generator.send(None)
+
+  def process(self, context, *args, **kwargs):
+    return self._generator.send((context, args, kwargs))
+
+  def finish_bundle(self, context):
+    self._generator.close()
 
 class CallableWrapperDoFn(DoFn):
   """A DoFn (function) object wrapping a callable object.
