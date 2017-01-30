@@ -46,15 +46,15 @@ def word_extractor():
     The processed element.
   """
   line_splitter = re.compile(r'[A-Za-z\']+')
+  context, args, kwargs = yield
   while True:
-    context, args, kwargs = yield
     text_line = context.element.strip()
     if not text_line:
       context.aggregate_to(empty_line_aggregator, 1)
     words = line_splitter.findall(text_line)
     for w in words:
       context.aggregate_to(average_word_size_aggregator, len(w))
-    yield words
+    context, args, kwargs = yield words
 
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
