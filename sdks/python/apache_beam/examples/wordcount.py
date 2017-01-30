@@ -36,28 +36,25 @@ average_word_size_aggregator = beam.Aggregator('averageWordLength',
                                                float)
 
 
-class WordExtractingDoFn(beam.DoFn):
-  """Parse each line of input text into words."""
 
-  def process(self, context):
-    """Returns an iterator over the words of this element.
+def word_extractor():
+  """Returns an iterator over the words of this element.
 
-    The element is a line of text.  If the line is blank, note that, too.
+  The element is a line of text.  If the line is blank, note that, too.
 
-    Args:
-      context: the call-specific context: data and aggregator.
-
-    Returns:
-      The processed element.
-    """
+  Returns:
+    The processed element.
+  """
+  line_splitter = re.compile(r'[A-Za-z\']+')
+  while True:
+    context, args, kwargs = yield
     text_line = context.element.strip()
     if not text_line:
       context.aggregate_to(empty_line_aggregator, 1)
-    words = re.findall(r'[A-Za-z\']+', text_line)
+    words = line_splitter.findall(text_line)
     for w in words:
       context.aggregate_to(average_word_size_aggregator, len(w))
-    return words
-
+    yield words
 
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
@@ -82,7 +79,7 @@ def run(argv=None):
 
   # Count the occurrences of each word.
   counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
+            | 'split' >> (beam.ParDo(beam.DoFn.from_generator(word_extractor))
                           .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
