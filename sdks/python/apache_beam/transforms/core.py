@@ -210,6 +210,8 @@ def _fn_takes_side_inputs(fn):
   is_bound = isinstance(fn, types.MethodType) and fn.im_self is not None
   return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
 
+
+
 class GeneratorWrapperDoFn(DoFn):
 
   def __init__(self, generator, *args, **kwargs):
@@ -220,15 +222,25 @@ class GeneratorWrapperDoFn(DoFn):
     self._gen_args = args
     self._gen_kwargs = kwargs
 
+  def element_generator(self):
+    while True:
+      if self._current_value is not None:
+        yield self._current_value
+      else:
+        raise StopIteration()
+
   def start_bundle(self, context):
-    self._generator = self._generator_def(*self._gen_args, **self._gen_kwargs)
-    self._generator.send(None)
+    self._generator = self._generator_def(
+        self.element_generator(), *self._gen_args, **self._gen_kwargs)
 
   def process(self, context, *args, **kwargs):
-    return self._generator.send((context, args, kwargs))
+    self._current_value = (context, args, kwargs)
+    return self._generator.next()
 
   def finish_bundle(self, context):
+    self._current_value = None
     self._generator.close()
+
 
 class CallableWrapperDoFn(DoFn):
   """A DoFn (function) object wrapping a callable object.

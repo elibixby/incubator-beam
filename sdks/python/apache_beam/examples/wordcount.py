@@ -37,7 +37,7 @@ average_word_size_aggregator = beam.Aggregator('averageWordLength',
 
 
 
-def word_extractor():
+def word_extractor(inputs):
   """Returns an iterator over the words of this element.
 
   The element is a line of text.  If the line is blank, note that, too.
@@ -46,15 +46,15 @@ def word_extractor():
     The processed element.
   """
   line_splitter = re.compile(r'[A-Za-z\']+')
-  context, args, kwargs = yield
-  while True:
+  for context, _, _ in inputs:
     text_line = context.element.strip()
     if not text_line:
       context.aggregate_to(empty_line_aggregator, 1)
     words = line_splitter.findall(text_line)
     for w in words:
       context.aggregate_to(average_word_size_aggregator, len(w))
-    context, args, kwargs = yield words
+    yield words
+
 
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
