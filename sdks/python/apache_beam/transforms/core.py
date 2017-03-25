@@ -239,7 +239,12 @@ class GeneratorWrapperDoFn(DoFn):
 
   def finish_bundle(self, context):
     self._current_value = None
-    self._generator.close()
+    try:
+      self._generator.next()
+    except StopIteration:
+      pass
+    finally:
+      self._generator.close()
 
 
 class CallableWrapperDoFn(DoFn):
