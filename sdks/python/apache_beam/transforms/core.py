@@ -223,11 +223,10 @@ class GeneratorWrapperDoFn(DoFn):
     self._gen_kwargs = kwargs
 
   def element_generator(self):
-    while True:
-      if self._current_value is not None:
-        yield self._current_value
-      else:
-        raise StopIteration()
+    while self._current_value is not None:
+      yield self._current_value
+
+    raise StopIteration()
 
   def start_bundle(self, context):
     self._generator = self._generator_def(
