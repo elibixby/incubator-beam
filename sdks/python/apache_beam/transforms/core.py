@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-import collections
 import copy
 import inspect
 import types
@@ -224,25 +223,21 @@ class GeneratorWrapperDoFn(DoFn):
     self._gen_kwargs = kwargs
 
   def element_generator(self):
-    while self._element_queue is not None:
-      try:
-        yield self._element_queue.pop()
-      except IndexError as e:
-        raise StopIteration(str(e))
+    while self._current_value is not None:
+      yield self._current_value
 
     raise StopIteration()
 
   def start_bundle(self, context):
-    self._element_queue = collections.deque()
     self._generator = self._generator_def(
         self.element_generator(), *self._gen_args, **self._gen_kwargs)
 
   def process(self, context, *args, **kwargs):
-    self._element_queue.append((context, args, kwargs))
+    self._current_value = (context, args, kwargs)
     return self._generator.next()
 
   def finish_bundle(self, context):
-    self._element_queue = None
+    self._current_value = None
     try:
       self._generator.next()
     except StopIteration:
