@@ -224,6 +224,7 @@ class GeneratorWrapperDoFn(DoFn):
 
   def element_generator(self):
     while self._current_value is not None:
+      self._consumed = True
       yield self._current_value
 
     raise StopIteration()
@@ -233,6 +234,9 @@ class GeneratorWrapperDoFn(DoFn):
         self.element_generator(), *self._gen_args, **self._gen_kwargs)
 
   def process(self, context, *args, **kwargs):
+    if not self._consumed:
+      raise RuntimeError('Unconsumed element: {} beam.DoFns must be 1:1 element processing'.format(self._current_value))
+    self._consumed = False
     self._current_value = (context, args, kwargs)
     return self._generator.next()
 
